@@ -1,0 +1,15 @@
+#payment-options {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+  margin-bottom: 20px;
+}
+
+#button-container-action {
+  margin-top: 20px;
+}
+
+#button-container {
+  display: flex;
+  justify-content: flex-end;
+}

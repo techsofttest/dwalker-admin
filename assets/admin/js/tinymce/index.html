@@ -1,0 +1,64 @@
+<script type="text/javascript" src="js/tinymce/tinymce.min.js"></script>
+<script type="text/javascript" src="js/jquery.min.js"></script>
+<link rel="stylesheet" type="text/css" href="fancybox/jquery.fancybox.css" media="screen" />
+<script type="text/javascript" src="fancybox/jquery.fancybox.js"></script>
+<!--<script type="text/javascript" src="path/to/tiny_mce/tiny_mce_popup.js"></script>-->
+<style>
+    .fancybox-wrap,
+    .fancybox-overlay{
+        z-index: 88888;
+    }
+</style>
+<script type="text/javascript">
+    
+tinymce.init({
+    selector: "textareas",
+    theme: "modern",
+    plugins: [
+        "advlist autolink lists link image charmap print preview hr anchor pagebreak",
+        "searchreplace wordcount visualblocks visualchars code fullscreen",
+        "insertdatetime media nonbreaking save table contextmenu directionality",
+        "emoticons template paste textcolor colorpicker textpattern  responsivefilemanager imagetools"
+    ],
+     external_filemanager_path:"filemanager/",
+   filemanager_title:"Browse files" ,
+   external_plugins: { "filemanager" : "/filemanager/plugin.min.js"},
+   
+    toolbar1: "insertfile undo redo | styleselect | bold italic | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link responsivefilemanager image",
+    toolbar2: "print preview media | forecolor backcolor emoticons  | print preview code",
+    image_advtab: true,
+
+    file_browser_callback: myFileBrowser,
+    file_browser_callback_types: 'image'
+
+   
+  
+
+});
+
+function myFileBrowser (field_name, url, type, win) {
+
+    var w = window,
+    d = document,
+    e = d.documentElement,
+    g = d.getElementsByTagName('body')[0],
+    x = w.innerWidth || e.clientWidth || g.clientWidth,
+    y = w.innerHeight|| e.clientHeight|| g.clientHeight;
+
+    var cmsURL = 'filemanager/dialog.php?field_id='+field_name;
+
+
+    $.fancybox.open({
+        padding : 0,
+        href:cmsURL,
+        type: 'iframe'
+    });
+
+    return false;
+}
+  
+</script>
+
+<form method="post" action="somepage">
+    <textarea name="content" style="width:100%"></textarea>
+</form>
