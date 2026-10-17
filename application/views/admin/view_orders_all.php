@@ -164,7 +164,7 @@ table.dataTable td, table.dataTable th{
                                         <th>User</th>
                                         <th>Instruction</th>
                                         <th>TransID</th>
-                                        <!--<th>Product Details</th>-->
+                                        <th>Items</th>
                                         <th>Total</th>
                                         <!--<th>Comp Details</th> 
                                         <th>Attachments</th>-->
@@ -208,13 +208,10 @@ table.dataTable td, table.dataTable th{
                                    <td><?php echo $val->payInstruction; ?></td>
                                    <td><?php echo $val->payOrderID; ?></td>
                                     
-                                    <?php /*
-                                   <td><?php echo $val->payProduct; ?>  <br />
-                                    Quantity:  <?php echo $val->payQuantity; ?> <br >Price: $<?php echo $val->payPrice; ?> NZD<br>
-                                    Total: $<?php echo $val->payTotalsingle; ?> NZD<br />
-                                   
+                                    <td>
+                                      <b><?php echo htmlspecialchars($val->payProduct); ?></b>
+                                      <br><small class="text-muted">Total Qty: <?php echo (int)$val->payQuantity; ?></small>
                                     </td>
-                                    */?>
                                    
                                     <td>Total Amount: $<?php echo $val->payTotalbefore; ?> NZD<br />
                                     Shipping Amount: $<?php echo $val->payShipping; ?> NZD</td>

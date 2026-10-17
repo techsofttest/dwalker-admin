@@ -99,3 +99,11 @@ $route['api/payment/status'] = 'Api/payment_status';
 
 /* Contact Us API Route */
 $route['api/contact'] = 'Api/contact_submit';
+
+/* Newsletter Subscription API Route */
+$route['api/newsletter/subscribe'] = 'Api/newsletter_subscribe';
+
+/* Blogs API Routes */
+$route['api/blogs'] = 'Api/blogs';
+$route['api/blogs/(:any)'] = 'Api/blog_detail/$1';
+

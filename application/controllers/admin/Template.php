@@ -77,13 +77,19 @@ public function Teams()
 		$data['grouped'] = array_chunk($users, 10);
 		$this->load->view('admin/view_teams_members',$data);}
 
-	
-
 		public function Users()
 		{
-		$data['seo_title'] = "View List Users | D WALKER JEWELRY";	
-		$data['users']	=	$this->Admin_model->fetch_all_order_cond('dwalker_users','USER_ID','Desc',array());
-		$data['subject_list']	=	$this->Admin_model->fetch_all('dwalker_template');
-		$data['grouped'] = array_chunk($data['users'], 10);
-		$this->load->view('admin/view_team',$data);}		
+		$data['seo_title'] = "Newsletter Subscribers | D WALKER JEWELRY";	
+		$data['subscribers'] = $this->Admin_model->fetch_all_order_cond('dwalker_newsletter_subscribers','id','Desc',array());
+		$data['subject_list'] = $this->Admin_model->fetch_all('dwalker_template');
+		$this->load->view('admin/view_team',$data);
 		}
+
+		public function DeleteSubscriber($id)
+		{
+			$this->db->where('id', $id);
+			$this->db->delete('dwalker_newsletter_subscribers');
+			$this->session->set_flashdata('success', 'Newsletter subscriber removed successfully.');
+			redirect(base_url().'admin/Template/Users');
+		}
+}

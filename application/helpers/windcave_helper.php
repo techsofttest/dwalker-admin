@@ -8,27 +8,35 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 if (!function_exists('get_windcave_config')) {
     function get_windcave_config() {
-        // Mode toggle: Set to 'test' for UAT/Sandbox testing, or 'live' for production
-        $mode = 'test';
+        $CI =& get_instance();
+        if ($CI && isset($CI->config)) {
+            $CI->config->load('windcave_config', TRUE, TRUE);
+            $loaded = $CI->config->item('windcave_config');
+            if (!empty($loaded) && !empty($loaded['windcave_username'])) {
+                $username = $loaded['windcave_username'];
+                $apiKey = $loaded['windcave_api_key'];
+                $authHeader = !empty($loaded['windcave_auth_header']) 
+                    ? $loaded['windcave_auth_header'] 
+                    : ('Basic ' . base64_encode($username . ':' . $apiKey));
 
-        $configs = array(
-            'test' => array(
-                'mode'        => 'test',
-                'api_url'     => 'https://uat.windcave.com/api/v1',
-                'username'    => 'dwalkerjewelsREST_dev',
-                'api_key'     => 'cdda9942dbe18bf9ba25e7da8a3da0c963e8f14199f94eff65e18bb4fcd04bcf',
-                'auth_header' => 'Basic ' . base64_encode('dwalkerjewelsREST_dev:cdda9942dbe18bf9ba25e7da8a3da0c963e8f14199f94eff65e18bb4fcd04bcf')
-            ),
-            'live' => array(
-                'mode'        => 'live',
-                'api_url'     => 'https://sec.windcave.com/api/v1',
-                'username'    => 'KRVLimited_Rest',
-                'api_key'     => '2e6e9a7d78baf3a1d8293614e83151fa2917ae5b1ffbbb05c0ad4ae38e395fdb',
-                'auth_header' => 'Basic ' . base64_encode('KRVLimited_Rest:2e6e9a7d78baf3a1d8293614e83151fa2917ae5b1ffbbb05c0ad4ae38e395fdb')
-            )
+                return array(
+                    'mode'        => !empty($loaded['windcave_mode']) ? $loaded['windcave_mode'] : 'test',
+                    'api_url'     => !empty($loaded['windcave_api_url']) ? $loaded['windcave_api_url'] : 'https://uat.windcave.com/api/v1',
+                    'username'    => $username,
+                    'api_key'     => $apiKey,
+                    'auth_header' => $authHeader
+                );
+            }
+        }
+
+        // Fallback default structure
+        return array(
+            'mode'        => 'test',
+            'api_url'     => 'https://uat.windcave.com/api/v1',
+            'username'    => '',
+            'api_key'     => '',
+            'auth_header' => ''
         );
-
-        return isset($configs[$mode]) ? $configs[$mode] : $configs['live'];
     }
 }
 
@@ -225,11 +233,37 @@ if (!function_exists('windcave_send_confirmation_email')) {
                             <tr><th colspan="2"><h3>New Order</h3></th></tr>
                           </thead>
                           <tbody style="background-color:#eee">
+                            <tr><th>Order ID</th><td><b>' . htmlspecialchars($order_det['OrderID']) . '</b></td></tr>
                             <tr><th>Name</th><td>' . htmlspecialchars($order_det['payName']) . '</td></tr>
                             <tr><th>Email</th><td>' . htmlspecialchars($order_det['payEmail']) . '</td></tr>
                             <tr><th>Phone</th><td>' . htmlspecialchars($order_det['payPhone']) . '</td></tr>
-                            <tr><th>Product</th><td>' . htmlspecialchars($order_det['payProduct']) . '</td></tr>
-                            <tr><th>Amount</th><td>$' . htmlspecialchars($order_det['payTotal']) . ' NZD</td></tr>
+                            <tr><th>Shipping Address</th><td>' . nl2br(htmlspecialchars($order_det['payAddress'])) . '</td></tr>
+                            <tr>
+                              <th colspan="2" style="background:#ddd;text-align:left;padding:8px;">Order Items:</th>
+                            </tr>
+                            <tr>
+                              <td colspan="2" style="padding:0;">
+                                <table width="100%" cellpadding="6" cellspacing="0" border="1" style="border-collapse:collapse;border-color:#ccc;font-size:12px;">
+                                  <tr style="background:#f2f2f2;"><th>Product</th><th>Qty</th><th>Price</th><th>Total</th></tr>
+                                  ' . (function() use ($ci, $order_det) {
+                                      $order_items = $ci->db->get_where('dwalker_order_products', array('OrderID' => $order_det['payID']))->result_array();
+                                      if (empty($order_items)) {
+                                          return '<tr><td colspan="4">' . htmlspecialchars($order_det['payProduct']) . ' (Qty: ' . $order_det['payQuantity'] . ')</td></tr>';
+                                      }
+                                      $rows = '';
+                                      foreach ($order_items as $it) {
+                                          $item_total = (float)$it['payPrice'] * (int)$it['payQuantity'];
+                                          $rows .= '<tr><td>' . htmlspecialchars($it['payProduct']) . '</td><td align="center">' . (int)$it['payQuantity'] . '</td><td align="right">$' . number_format((float)$it['payPrice'], 2) . '</td><td align="right">$' . number_format($item_total, 2) . '</td></tr>';
+                                      }
+                                      return $rows;
+                                  })() . '
+                                </table>
+                              </td>
+                            </tr>
+                            <tr><th>Subtotal</th><td>$' . number_format((float)$order_det['payTotalbefore'], 2) . ' NZD</td></tr>
+                            ' . (!empty($order_det['payTax']) && (float)$order_det['payTax'] > 0 ? '<tr><th>GST / Tax</th><td>$' . number_format((float)$order_det['payTax'], 2) . ' NZD</td></tr>' : '') . '
+                            <tr><th>Shipping</th><td>$' . number_format((float)$order_det['payShipping'], 2) . ' NZD</td></tr>
+                            <tr><th><b>Grand Total</b></th><td><b>$' . number_format((float)$order_det['payTotal'], 2) . ' NZD</b></td></tr>
                             <thead style="background-color:#5aa0dc;color:white">
                               <tr><th colspan="2"><h3>Complimentary Details</h3></th></tr>
                             </thead>  

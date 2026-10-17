@@ -368,32 +368,30 @@
 
                             <tr>
 
+                            <tr>
                             <td align="left">Sub Total</td>
-
-                            <td align="right"><?= $order['payTotalbefore'] ?></td>
-
+                            <td align="right">$ <?= number_format((float)$order["payTotalbefore"], 2) ?> NZD</td>
                             </tr>
-
-
+                            <?php if(!empty($order["payTax"]) && (float)$order["payTax"] > 0) { ?>
                             <tr>
-
+                            <td align="left">GST / Tax</td>
+                            <td align="right">$ <?= number_format((float)$order["payTax"], 2) ?> NZD</td>
+                            </tr>
+                            <?php } ?>
+                            <tr>
                             <td align="left">Shipping</td>
-
-                            <td align="right"><?= $order['payShipping'] ?></td>
-
+                            <td align="right">$ <?= number_format((float)$order["payShipping"], 2) ?> NZD</td>
                             </tr>
-
-
+                            <?php if(!empty($order["promo_status"]) && $order["promo_status"] == 1) { ?>
+                            <tr style="color:red;">
+                            <td align="left">Promo Discount (<?= $order["promo_dis"] ?>%)</td>
+                            <td align="right">- $ <?= number_format(((float)$order["payTotalbefore"] * (float)$order["promo_dis"]) / 100, 2) ?> NZD</td>
+                            </tr>
+                            <?php } ?>
                             <tr>
-
                             <td align="left">Total</td>
-
-                            <td align="right"><b><?= $order['payTotal'] ?></b></td>
-
+                            <td align="right"><b>$ <?= number_format((float)$order["payTotal"], 2) ?> NZD</b></td>
                             </tr>
-
-
-
                             </table>
                             </div>
 

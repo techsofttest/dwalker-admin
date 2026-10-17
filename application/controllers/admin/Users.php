@@ -142,72 +142,62 @@ class Users extends CI_Controller
 				
 			
 			
-$this->load->library('email');					
-$config['protocol']    = 'smtp';
+						$this->load->library('email');
+						$this->load->config('email', TRUE);
 
-/*
-$config['smtp_host']    = 'ssl://smtp.gmail.com';
-$config['smtp_port']    = '465';
-$config['smtp_timeout'] = '7';
-$config['smtp_user']    = 'techsofttest@gmail.com';
-$config['smtp_pass']    = 'testpwd12345@';
-*/
+						$from_email = $this->config->item('from_email') ?: 'mailus@dwalker.co.nz';
+						$from_name  = $this->config->item('from_name') ?: 'D WALKER JEWELRY';
 
+						$recipient_emails = array();
 
-$config['smtp_host']    = 'mail.dwalker.co.nz';
-$config['smtp_port']    = '587';
-$config['smtp_timeout'] = '7';
-$config['smtp_user']    = 'mailus@dwalker.co.nz';
-$config['smtp_pass']    = '*2]c-E6FR6V;';
-
-
-
-$config['mailtype'] = 'text'; // or html
-$config['validation'] = TRUE; // bool whether to validate email or not  
-					
-					
-					
-					$config['charset'] = 'utf-8';				 
-					$config['newline'] = "\r\n";
-					$config['crlf'] = "\r\n";
-					$this->email->initialize($config);
-					//$this->email->from('techsofttest@gmail.com','D WALKER JEWELRY');  
-					
-					$this->email->from('mailus@dwalker.co.nz','D WALKER JEWELRY'); 
-					
-							                                                      
-						
-						$subject = "D WALKER JEWELRY";
-					
-						
-						//$this->email->to($user_email);
-						
-						//$this->email->to('nzjewels@jdewalker.org');
-						//$this->email->to("techsofttest@gmail.com");
-						
-						if(!empty($item)){
-						foreach($item as $it){
-							$data['email'] = $this->Admin_model->fetch_one_row('dwalker_users',array('USER_ID'=>$it));		
-							$emails = $data['email']['EMAIL_ID'];				
-						$this->email->to('techsofttest@gmail.com');
-						}} else {
-							$this->email->to('techsofttest@gmail.com');
-						}
-						 
-						$this->email->subject($subject);			
-						$this->email->message($body);                
-						$this->email->set_newline("\r\n");
-						$this->email->set_mailtype("html");
- 
-						//$this->email->send();
-						if(!$this->email->send()){						
-						   $data['msg']=0;	
-							}else{
-								$data['msg']=1;	
+						if (!empty($item)) {
+							foreach ($item as $it) {
+								if (is_numeric($it)) {
+									// Check dwalker_newsletter_subscribers first
+									$subRow = $this->Admin_model->fetch_one_row('dwalker_newsletter_subscribers', array('id' => $it));
+									if (!empty($subRow['email'])) {
+										$recipient_emails[] = trim($subRow['email']);
+									} else {
+										// Fallback to dwalker_users
+										$userRow = $this->Admin_model->fetch_one_row('dwalker_users', array('USER_ID' => $it));
+										if (!empty($userRow['EMAIL_ID'])) {
+											$recipient_emails[] = trim($userRow['EMAIL_ID']);
+										}
+									}
+								} elseif (filter_var($it, FILTER_VALIDATE_EMAIL)) {
+									$recipient_emails[] = trim($it);
+								}
 							}
-						
-					echo json_encode($data);		
+						}
+
+						$recipient_emails = array_unique(array_filter($recipient_emails));
+
+						if (empty($recipient_emails)) {
+							echo json_encode(array('status' => 0, 'msg' => 0, 'message' => 'No recipients selected'));
+							return;
+						}
+
+						$subject_title = !empty($data['sub']['title']) ? $data['sub']['title'] : 'D WALKER JEWELRY';
+
+						$success_count = 0;
+						foreach ($recipient_emails as $recipient) {
+							$this->email->clear(TRUE);
+							$this->email->from($from_email, $from_name);
+							$this->email->to($recipient);
+							$this->email->subject($subject_title);
+							$this->email->message($body);
+							$this->email->set_mailtype("html");
+
+							if (@$this->email->send()) {
+								$success_count++;
+							}
+						}
+
+						$data['msg'] = ($success_count > 0) ? 1 : 0;
+						$data['status'] = ($success_count > 0) ? 1 : 0;
+						echo json_encode($data);
 			}
+
 	
 
 

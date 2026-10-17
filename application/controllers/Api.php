@@ -20,6 +20,43 @@ class Api extends CI_Controller {
              ->set_output(json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
+    /**
+     * Common bot defense validator: checks honeypot trap, speed, and IP rate limits
+     */
+    private function is_bot_submission($post, $rate_prefix, $max_attempts = 10, $decay_seconds = 600) {
+        // 1. Honeypot check: Bots fill hidden/decoy fields
+        $hp_values = array(
+            isset($post['website_url']) ? trim($post['website_url']) : '',
+            isset($post['hp_field']) ? trim($post['hp_field']) : '',
+            isset($post['company_fax']) ? trim($post['company_fax']) : ''
+        );
+        foreach ($hp_values as $hp) {
+            if (!empty($hp)) {
+                return true; // Trap triggered
+            }
+        }
+
+        // 2. Submission speed check: Bots submit instantaneously
+        if (isset($post['form_rendered_at']) && is_numeric($post['form_rendered_at'])) {
+            $timeTaken = time() - (int)$post['form_rendered_at'];
+            if ($timeTaken < 1) {
+                return true; // Unnaturally fast
+            }
+        }
+
+        // 3. IP rate limiting
+        $ip = $this->input->ip_address();
+        $rate_key = $rate_prefix . '_' . md5($ip);
+        $attempts = (int)$this->cache->file->get($rate_key);
+        if ($attempts >= $max_attempts) {
+            return 'rate_limited';
+        }
+        $this->cache->file->save($rate_key, $attempts + 1, $decay_seconds);
+
+        return false;
+    }
+
+
     private function get_image_url($folder, $filename) {
         if (empty($filename)) {
             return rtrim(base_url(), '/') . '/uploads/placeholder.jpg';
@@ -166,6 +203,7 @@ class Api extends CI_Controller {
             }
             $p['price'] = (float)$p['productPrice'];
             $p['original_price'] = (float)$p['productStrikePrice'];
+            $p['tax'] = isset($p['productTax']) ? (float)$p['productTax'] : 0.0;
             $p['productType'] = !empty($p['productType']) || !empty($p['type']) ? 1 : 0;
             $p['is_featured'] = $p['productType'] === 1;
         }
@@ -206,6 +244,7 @@ class Api extends CI_Controller {
             }
             $p['price'] = (float)$p['productPrice'];
             $p['original_price'] = (float)$p['productStrikePrice'];
+            $p['tax'] = isset($p['productTax']) ? (float)$p['productTax'] : 0.0;
             $p['productType'] = !empty($p['productType']) || !empty($p['type']) ? 1 : 0;
             $p['is_featured'] = $p['productType'] === 1;
         }
@@ -233,6 +272,7 @@ class Api extends CI_Controller {
                 $p['SlugName'] = strtolower(url_title($p['product_name']));
             }
             $p['price'] = (float)$p['productPrice'];
+            $p['tax'] = isset($p['productTax']) ? (float)$p['productTax'] : 0.0;
         }
 
         $this->response(array(
@@ -294,6 +334,7 @@ class Api extends CI_Controller {
         $product['default_image_url'] = $this->get_image_url('Products', $product['ProductdefaultImage']);
         $product['price'] = (float)$product['productPrice'];
         $product['original_price'] = (float)$product['productStrikePrice'];
+        $product['tax'] = isset($product['productTax']) ? (float)$product['productTax'] : 0.0;
 
         // Fetch Product Gallery Images from dwalker_productimage
         $gallery_raw = $this->db->get_where('dwalker_productimage', array('product_id' => $product['product_id']))->result_array();
@@ -350,6 +391,7 @@ class Api extends CI_Controller {
         foreach ($results as &$r) {
             $r['image_url'] = $this->get_image_url('Products', $r['ProductImage']);
             $r['price'] = (float)$r['productPrice'];
+            $r['tax'] = isset($r['productTax']) ? (float)$r['productTax'] : 0.0;
         }
 
         $this->response(array(
@@ -750,6 +792,29 @@ class Api extends CI_Controller {
     public function register() {
         $post = json_decode(file_get_contents('php://input'), true) ?: $_POST;
 
+        // Bot protection: Honeypot check & rate limiting
+        $bot_check = $this->is_bot_submission($post, 'reg_rate', 10, 600);
+        if ($bot_check === true) {
+            // Fake success response to deflect bot
+            $this->response(array(
+                'status'  => 'success',
+                'message' => 'Registration successful! Please check your email to verify your account.',
+                'data'    => array(
+                    'user_id'     => rand(1000, 9999),
+                    'fullname'    => isset($post['fullname']) ? trim($post['fullname']) : '',
+                    'email'       => isset($post['email']) ? trim($post['email']) : '',
+                    'is_verified' => 0
+                )
+            ));
+            return;
+        } elseif ($bot_check === 'rate_limited') {
+            $this->response(array(
+                'status'  => 'error',
+                'message' => 'Too many registration attempts. Please wait a few minutes before trying again.'
+            ), 429);
+            return;
+        }
+
         $token     = isset($post['verified_email_token']) ? trim($post['verified_email_token']) : '';
         $email     = isset($post['email']) ? strtolower(trim($post['email'])) : '';
         $fullname  = isset($post['fullname']) ? trim($post['fullname']) : '';
@@ -762,6 +827,7 @@ class Api extends CI_Controller {
             $this->response(array('status' => 'error', 'message' => 'Full name, email, and password are required.'), 400);
             return;
         }
+
 
         if (strlen($password) < 6) {
             $this->response(array('status' => 'error', 'message' => 'Password must be at least 6 characters long.'), 400);
@@ -1120,12 +1186,60 @@ class Api extends CI_Controller {
     public function place_order() {
         $post = json_decode(file_get_contents('php://input'), true) ?: $_POST;
 
+        // Bot protection: Honeypot check & rate limiting
+        $bot_check = $this->is_bot_submission($post, 'order_rate', 15, 600);
+        if ($bot_check === true) {
+            // Fake success response to deflect bot without placing order
+            $fake_order_id = 'DW' . rand(100000, 999999);
+            $this->response(array(
+                'status'  => 'success',
+                'message' => 'Order placed successfully!',
+                'data'    => array(
+                    'order_id'       => $fake_order_id,
+                    'transaction_id' => 'TR' . rand(10000, 99999),
+                    'total'          => 0,
+                )
+            ));
+            return;
+        } elseif ($bot_check === 'rate_limited') {
+            $this->response(array(
+                'status'  => 'error',
+                'message' => 'Too many requests. Please wait a few moments before trying again.'
+            ), 429);
+            return;
+        }
+
         $items = isset($post['items']) ? $post['items'] : array();
         $name = isset($post['name']) ? trim($post['name']) : '';
         $email = isset($post['email']) ? trim($post['email']) : '';
         $phone = isset($post['phone']) ? trim($post['phone']) : '';
         $address = isset($post['address']) ? trim($post['address']) : '';
+        $street = isset($post['street']) ? trim($post['street']) : '';
+        $suburb = isset($post['suburb']) ? trim($post['suburb']) : '';
+        $city = isset($post['city']) ? trim($post['city']) : '';
+        $postcode = isset($post['postcode']) ? trim($post['postcode']) : (isset($post['postCode']) ? trim($post['postCode']) : '');
+        $address_id = isset($post['address_id']) ? (int)$post['address_id'] : 0;
         $country = isset($post['country']) ? trim($post['country']) : 'New Zealand';
+
+        // Fallback: parse discrete fields from address if not sent separately
+        if (empty($street) && !empty($address)) {
+            $parts = array_map('trim', explode(',', $address));
+            if (count($parts) >= 4) {
+                $street = $parts[0];
+                $suburb = $parts[1];
+                $city = $parts[2];
+                $postcode = preg_replace('/[^0-9]/', '', $parts[3]);
+            } elseif (count($parts) === 3) {
+                $street = $parts[0];
+                $suburb = $parts[1];
+                $city = $parts[2];
+            } elseif (count($parts) === 2) {
+                $street = $parts[0];
+                $city = $parts[1];
+            } else {
+                $street = $address;
+            }
+        }
         $instruction = isset($post['instruction']) ? trim($post['instruction']) : '';
         $subtotal = isset($post['subtotal']) ? (float)$post['subtotal'] : 0;
         $shipping = isset($post['shipping']) ? (float)$post['shipping'] : 0;
@@ -1137,6 +1251,7 @@ class Api extends CI_Controller {
             $this->response(array('status' => 'error', 'message' => 'Cart items are required to place an order'), 400);
             return;
         }
+
 
         // Verify no upcoming products are in the cart
         $item_ids = array();
@@ -1186,36 +1301,90 @@ class Api extends CI_Controller {
             }
         }
 
-        // Record each item in dwalker_payments table
+        // Total Tax calculation across cart items
+        $tax = isset($post['tax']) ? (float)$post['tax'] : 0;
+        if ($tax <= 0) {
+            foreach ($items as $it) {
+                $it_tax = isset($it['tax']) ? (float)$it['tax'] : 0;
+                $it_qty = isset($it['quantity']) ? (int)$it['quantity'] : (isset($it['qty']) ? (int)$it['qty'] : 1);
+                $tax += ($it_tax * $it_qty);
+            }
+        }
+
+        // Summary item text for master payment row (e.g. "Product A, Product B")
+        $item_names = array();
+        $total_qty = 0;
+        foreach ($items as $it) {
+            $it_name = isset($it['name']) ? $it['name'] : (isset($it['product_name']) ? $it['product_name'] : 'Product');
+            $it_qty = isset($it['quantity']) ? (int)$it['quantity'] : (isset($it['qty']) ? (int)$it['qty'] : 1);
+            $item_names[] = $it_name;
+            $total_qty += $it_qty;
+        }
+        $master_product_summary = implode(', ', array_slice($item_names, 0, 3));
+        if (count($item_names) > 3) {
+            $master_product_summary .= ' +' . (count($item_names) - 3) . ' more';
+        }
+
+        // Identify registered user if logged in or by email match
+        $user_id = isset($post['user_id']) ? (int)$post['user_id'] : 0;
+        if (empty($user_id) && !empty($email)) {
+            $user_match = $this->db->get_where('dwalker_users', array('EMAIL_ID' => $email))->row_array();
+            if ($user_match && !empty($user_match['USER_ID'])) {
+                $user_id = (int)$user_match['USER_ID'];
+            }
+        }
+
+        // 1. Insert Master Order record into dwalker_payments (Exactly 1 row per order)
+        $master_data = array(
+            'USER_ID'         => !empty($user_id) ? $user_id : null,
+            'TransId'         => $trans_id,
+            'OrderID'         => $order_id,
+            'payProduct'      => $master_product_summary,
+            'payQuantity'     => $total_qty,
+            'payPrice'        => $subtotal,
+            'payName'         => $name,
+            'payCountry'      => $country,
+            'payPhone'        => $phone,
+            'payEmail'        => $email,
+            'payAddress'      => $address,
+            'payAddressId'    => $address_id,
+            'payStreet'       => $street,
+            'paySuburb'       => $suburb,
+            'payCity'         => $city,
+            'payPostCode'     => $postcode,
+            'payInstruction'  => $instruction,
+            'payShipping'     => $shipping,
+            'payTax'          => $tax,
+            'promo_status'    => !empty($promocode) ? 1 : 0,
+            'promo_dis'       => $promo_dis,
+            'payTotalsingle'  => $subtotal,
+            'payTotalbefore'  => $subtotal,
+            'payTotal'        => $total,
+            'payDate'         => date('Y-m-d'),
+            'payTime'         => date('H:i:s')
+        );
+
+        $this->db->insert('dwalker_payments', $master_data);
+        $master_pay_id = $this->db->insert_id();
+
+        // 2. Insert Individual Cart Items into dwalker_order_products linked to master payID
         foreach ($items as $item) {
             $prod_id = isset($item['id']) ? $item['id'] : (isset($item['product_id']) ? $item['product_id'] : '0');
             $prod_name = isset($item['name']) ? $item['name'] : (isset($item['product_name']) ? $item['product_name'] : 'Product');
             $prod_qty = isset($item['quantity']) ? (int)$item['quantity'] : (isset($item['qty']) ? (int)$item['qty'] : 1);
             $prod_price = isset($item['price']) ? (float)$item['price'] : 0;
-            $prod_subtotal = $prod_price * $prod_qty;
+            $prod_tax = isset($item['tax']) ? (float)$item['tax'] : 0;
 
-            $insert_data = array(
-                'payProID'        => $prod_id,
-                'TransId'         => $trans_id,
-                'OrderID'         => $order_id,
-                'payProduct'      => $prod_name,
-                'payQuantity'     => $prod_qty,
-                'payPrice'        => $prod_price,
-                'payName'         => $name,
-                'payCountry'      => $country,
-                'payPhone'        => $phone,
-                'payEmail'        => $email,
-                'payAddress'      => $address,
-                'payInstruction'  => $instruction,
-                'payShipping'     => $shipping,
-                'promo_status'    => !empty($promocode) ? 1 : 0,
-                'promo_dis'       => $promo_dis,
-                'payTotalsingle'  => $prod_subtotal,
-                'payTotalbefore'  => $subtotal,
-                'payTotal'        => $total
+            $item_data = array(
+                'OrderID'     => $master_pay_id,
+                'payProduct'  => $prod_name,
+                'payProID'    => $prod_id,
+                'payQuantity' => $prod_qty,
+                'payPrice'    => $prod_price,
+                'payTax'      => $prod_tax
             );
 
-            $this->db->insert('dwalker_payments', $insert_data);
+            $this->db->insert('dwalker_order_products', $item_data);
         }
 
         $this->response(array(
@@ -1758,10 +1927,15 @@ class Api extends CI_Controller {
         }
 
         $this->db->from('dwalker_payments');
-        if (!empty($user_id)) {
+        if (!empty($user_id) && !empty($email)) {
+            $this->db->group_start();
+            $this->db->where('USER_ID', $user_id);
+            $this->db->or_where('LOWER(payEmail)', $email);
+            $this->db->group_end();
+        } elseif (!empty($user_id)) {
             $this->db->where('USER_ID', $user_id);
         } else {
-            $this->db->where('payEmail', $email);
+            $this->db->where('LOWER(payEmail)', $email);
         }
         $this->db->order_by('payID', 'DESC');
         $payments = $this->db->get()->result_array();
@@ -1779,10 +1953,34 @@ class Api extends CI_Controller {
                 $status_str = 'Payment Failed';
             }
 
+            // Map item details with product images from dwalker_product
+            $mapped_items = array();
+            foreach ($items as $it) {
+                $prod = null;
+                if (!empty($it['payProID'])) {
+                    $prod = $this->db->get_where('dwalker_product', array('product_id' => $it['payProID']))->row_array();
+                }
+                if (!$prod && !empty($it['payProduct'])) {
+                    $prod = $this->db->get_where('dwalker_product', array('product_name' => $it['payProduct']))->row_array();
+                }
+
+                $img_name = $prod ? (!empty($prod['ProductImage']) ? $prod['ProductImage'] : $prod['ProductdefaultImage']) : '';
+                $img_url = $img_name ? $this->get_image_url('Products', $img_name) : '/placeholder.png';
+
+                $mapped_items[] = array(
+                    'id'       => (string)$it['pro_id'],
+                    'name'     => $it['payProduct'],
+                    'image'    => $img_url,
+                    'price'    => (float)$it['payPrice'],
+                    'quantity' => (int)$it['payQuantity'],
+                    'specs'    => 'Fine Jewellery'
+                );
+            }
+
             $formatted[] = array(
                 'id'              => $p['OrderID'] ?: 'DW' . $p['payID'],
                 'internal_id'     => $p['payID'],
-                'date'            => date('d M Y', strtotime($p['payDate'] ?: 'now')),
+                'date'            => ($p['payDate'] && $p['payDate'] !== '0000-00-00') ? date('d M Y', strtotime($p['payDate'])) : date('d M Y'),
                 'status'          => $status_str,
                 'total'           => (float)$p['payTotal'],
                 'subtotal'        => (float)$p['payTotalbefore'],
@@ -1791,15 +1989,7 @@ class Api extends CI_Controller {
                 'trackingNumber'  => $p['orderTrackingRef'] ?: null,
                 'courier'         => !empty($p['orderTrackingRef']) ? 'NZ Post Express' : null,
                 'paymentMethod'   => ((int)$p['payStatus'] === 3) ? 'Cash On Delivery' : 'Online Payment (Windcave)',
-                'items'           => array_map(function($it) {
-                    return array(
-                        'id'       => (string)$it['orderprodID'],
-                        'name'     => $it['payProduct'],
-                        'price'    => (float)$it['payPrice'],
-                        'quantity' => (int)$it['payQuantity'],
-                        'specs'    => $it['payProdcode'] ? 'SKU: ' . $it['payProdcode'] : 'Fine Jewellery'
-                    );
-                }, $items)
+                'items'           => $mapped_items
             );
         }
 
@@ -1917,23 +2107,28 @@ class Api extends CI_Controller {
     public function contact_submit() {
         $post = json_decode(file_get_contents('php://input'), true) ?: $_POST;
 
-        $name    = isset($post['name']) ? trim($post['name']) : '';
-        $email   = isset($post['email']) ? trim($post['email']) : '';
-        $subject = isset($post['subject']) ? trim($post['subject']) : 'Inquiry regarding jewellery';
-        $message = isset($post['message']) ? trim($post['message']) : '';
-
-        // Rate limiting: max 10 messages per 10 minutes per IP
-        $ip = $this->input->ip_address();
-        $rate_key = 'contact_rate_' . md5($ip);
-        $attempts = (int)$this->cache->file->get($rate_key);
-        if ($attempts >= 10) {
+        // Bot protection: Honeypot check & rate limiting
+        $bot_check = $this->is_bot_submission($post, 'contact_rate', 10, 600);
+        if ($bot_check === true) {
+            // Fake success response to deflect bot without sending email
+            $this->response(array(
+                'status'  => 'success',
+                'message' => 'Thank you for reaching out! Your message has been sent successfully. We will get back to you shortly.'
+            ));
+            return;
+        } elseif ($bot_check === 'rate_limited') {
             $this->response(array(
                 'status'  => 'error',
                 'message' => 'Too many messages sent. Please wait a few minutes before trying again.'
             ), 429);
             return;
         }
-        $this->cache->file->save($rate_key, $attempts + 1, 600);
+
+        $name    = isset($post['name']) ? trim($post['name']) : '';
+        $email   = isset($post['email']) ? trim($post['email']) : '';
+        $subject = isset($post['subject']) ? trim($post['subject']) : 'Inquiry regarding jewellery';
+        $message = isset($post['message']) ? trim($post['message']) : '';
+
 
         // Validation
         if (empty($name)) {
@@ -2005,5 +2200,172 @@ class Api extends CI_Controller {
             'message' => 'Thank you for reaching out! Your message has been sent successfully. We will get back to you shortly.'
         ));
     }
+
+    // ------------------------------------------------------------------------
+    // 28. NEWSLETTER SUBSCRIBE API
+    // ------------------------------------------------------------------------
+    public function newsletter_subscribe() {
+        $post = json_decode(file_get_contents('php://input'), true) ?: $_POST;
+
+        // Honeypot trap: bots typically fill any visible or hidden text/email fields
+        $honeypot = isset($post['website_url']) ? trim($post['website_url']) : (isset($post['hp_field']) ? trim($post['hp_field']) : '');
+        if (!empty($honeypot)) {
+            // Silently pretend success to fool bots without storing anything
+            $this->response(array(
+                'status'  => 'success',
+                'message' => 'Thank you for subscribing to the World of D Walker!'
+            ));
+            return;
+        }
+
+        // Time-based check: if form was submitted unnaturally fast (< 1.5s)
+        if (isset($post['form_rendered_at']) && is_numeric($post['form_rendered_at'])) {
+            $timeTaken = time() - (int)$post['form_rendered_at'];
+            if ($timeTaken < 1) {
+                // Too fast to be human interaction
+                $this->response(array(
+                    'status'  => 'success',
+                    'message' => 'Thank you for subscribing to the World of D Walker!'
+                ));
+                return;
+            }
+        }
+
+        // IP rate limiting: max 5 newsletter subscription attempts per 10 minutes
+        $ip = $this->input->ip_address();
+        $rate_key = 'newsletter_sub_rate_' . md5($ip);
+        $attempts = (int)$this->cache->file->get($rate_key);
+        if ($attempts >= 5) {
+            $this->response(array(
+                'status'  => 'error',
+                'message' => 'Too many requests. Please wait a few minutes before trying again.'
+            ), 429);
+            return;
+        }
+        $this->cache->file->save($rate_key, $attempts + 1, 600);
+
+        $email = isset($post['email']) ? trim(strtolower($post['email'])) : '';
+
+        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->response(array(
+                'status'  => 'error',
+                'message' => 'Please enter a valid email address.'
+            ), 400);
+            return;
+        }
+
+        // Check if subscriber already exists
+        $existing = $this->db->get_where('dwalker_newsletter_subscribers', array('email' => $email))->row_array();
+
+        if ($existing) {
+            if (isset($existing['status']) && (int)$existing['status'] === 0) {
+                // Reactivate subscription if was previously removed/inactive
+                $this->db->where('id', $existing['id']);
+                $this->db->update('dwalker_newsletter_subscribers', array('status' => 1));
+            }
+            $this->response(array(
+                'status'  => 'success',
+                'message' => 'You are already subscribed to our newsletter! Thank you for being with us.'
+            ));
+            return;
+        }
+
+        // Insert new subscriber
+        $inserted = $this->db->insert('dwalker_newsletter_subscribers', array(
+            'email'      => $email,
+            'created_at' => date('Y-m-d H:i:s'),
+            'status'     => 1
+        ));
+
+        if ($inserted) {
+            $this->response(array(
+                'status'  => 'success',
+                'message' => 'Thank you for subscribing to the World of D Walker!'
+            ));
+        } else {
+            $this->response(array(
+                'status'  => 'error',
+                'message' => 'Failed to subscribe at this moment. Please try again later.'
+            ), 500);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // 29. BLOGS API (List & Detail)
+    // ------------------------------------------------------------------------
+    public function blogs() {
+        $limit = (int)($this->input->get('limit') ?: 20);
+        $page  = (int)($this->input->get('page') ?: 1);
+        $offset = ($page - 1) * $limit;
+
+        $this->db->from('dwalker_blogs');
+        $this->db->where('status', 1);
+        $this->db->order_by('blog_date', 'DESC');
+        $this->db->order_by('id', 'DESC');
+
+        $total_items = $this->db->count_all_results('', false);
+        $this->db->limit($limit, $offset);
+        $blogs = $this->db->get()->result_array();
+
+        foreach ($blogs as &$b) {
+            $b['image_url'] = $this->get_image_url('Blogs', $b['image']);
+        }
+
+        $this->response(array(
+            'status' => 'success',
+            'pagination' => array(
+                'total_items' => $total_items,
+                'current_page' => $page,
+                'per_page' => $limit,
+                'total_pages' => ceil($total_items / $limit)
+            ),
+            'data' => $blogs
+        ));
+    }
+
+    public function blog_detail($slug = '') {
+        if (empty($slug)) {
+            $this->response(array('status' => 'error', 'message' => 'Blog slug is required'), 400);
+            return;
+        }
+
+        $this->db->from('dwalker_blogs');
+        $this->db->where('status', 1);
+        $this->db->group_start();
+        $this->db->where('slug', $slug);
+        if (is_numeric($slug)) {
+            $this->db->or_where('id', (int)$slug);
+        }
+        $this->db->group_end();
+        $blog = $this->db->get()->row_array();
+
+        if (!$blog) {
+            $this->response(array('status' => 'error', 'message' => 'Blog not found'), 404);
+            return;
+        }
+
+        $blog['image_url'] = $this->get_image_url('Blogs', $blog['image']);
+
+        // Fetch other recent blogs for "More Stories"
+        $this->db->from('dwalker_blogs');
+        $this->db->where('status', 1);
+        $this->db->where('id !=', $blog['id']);
+        $this->db->order_by('blog_date', 'DESC');
+        $this->db->limit(3);
+        $recent = $this->db->get()->result_array();
+        foreach ($recent as &$r) {
+            $r['image_url'] = $this->get_image_url('Blogs', $r['image']);
+        }
+
+        $blog['recent_blogs'] = $recent;
+
+        $this->response(array(
+            'status' => 'success',
+            'data'   => $blog
+        ));
+    }
+
 }
+
+
 

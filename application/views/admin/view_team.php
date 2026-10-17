@@ -11,13 +11,13 @@
     width: 40px;
     height: 40px;
     animation: spin 1s linear infinite;
+    z-index: 99999;
 }
 
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
-
 </style>
       <!-- Left side column. contains the logo and sidebar -->
       <aside class="main-sidebar">
@@ -30,10 +30,11 @@
         <!-- Content Header (Page header) -->
         <section class="content-header">
           <h1>
-           List Users
+           Newsletter Subscribed Users
           </h1>
           <ol class="breadcrumb">
             <li><a href="<?php echo base_url();?>admin/home"><i class="fa fa-dashboard"></i>Admin Home</a></li>
+            <li class="active">Newsletter Subscribers</li>
           </ol>
         </section>
 		
@@ -44,206 +45,147 @@
              <div class="box">
                 		<div class="box-body">
 
-          <form method="post" style="margin-top: 20px;margin-bottom: 5%;">     
+          <?php if($this->session->flashdata('success')): ?>
+            <div class="alert alert-success alert-dismissable">
+              <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+              <?php echo $this->session->flashdata('success'); ?>
+            </div>
+          <?php endif; ?>
+
+          <form method="post" style="margin-top: 20px;margin-bottom: 30px;">     
             <div class="col-lg-1"> </div>                  	
-            <div class="col-lg-3">                          
-                          
-            <?php if(!empty($this->input->post('subject')))              
-              {            
-              $subject =  $this->input->post('subject');                
-              }              
-              else              
-              {              
-              $subject="";                
-              }   
-          ?>
-            <label style="display: flex;justify-content: center;">Select Subject</label>            
-            <select class="form-control" id="subject" name="subject">
-              
-            <option value="">Select Subject</option>
-              
-            <?php foreach($subject_list as $sub){ ?>
-            
-            <option value="<?php echo $sub->tem_id;?>" <?php if($subject == $sub->tem_id) { echo "selected"; } ?> ><?php echo $sub->title?></option>
-            
-            <?php } ?>
-              
-            </select>                           
-       </div>
+            <div class="col-lg-6">                          
+              <label style="display: flex;">Select Subject / Template</label>            
+              <select class="form-control" id="subject" name="subject">
+                <option value="">-- Select Subject / Template --</option>
+                <?php foreach($subject_list as $sub){ ?>
+                  <option value="<?php echo $sub->tem_id;?>"><?php echo $sub->title; ?></option>
+                <?php } ?>
+              </select>                           
+            </div>
 
-       <div class="col-lg-3">                          
-                          
-                          <?php if(!empty($this->input->post('team')))              
-                            {            
-                            $team =  $this->input->post('team');                
-                            }              
-                            else              
-                            {              
-                            $team="";                
-                            }   
-                        ?>
-                           <label style="display: flex;justify-content: center;">Select Team</label>               
-                          <select class="form-control" id="team" name="team">
-                            
-                          <option value="" >Select Team</option>
-                            
-                          <?php foreach ($grouped as $index => $group){ 
-                              $email = array();
-
-                             foreach($group as $usd){
-
-                               $email[] = $usd->EMAIL_ID;                              
-                            } ?>                                                           
-                          <option value="<?php echo implode(",",$email);?>"> Team <?php echo $index + 1;?></option>
-                          
-                          <?php } ?>
-                            
-                          </select>                           
-                     </div>
-
-        <div class="col-lg-2"> 
-        <label></label><br>                       
-          <button class="form-control btn-success" id="Sendmail">Send Mail</button>                
-                          
-       </div>                      
-       
-
-    </form>
+            <div class="col-lg-3"> 
+              <label>&nbsp;</label><br>                       
+              <button type="button" class="btn btn-success btn-block" id="Sendmail"><i class="fa fa-paper-plane"></i> Send Mail</button>                
+            </div>                      
+          </form>
+          <div class="clearfix"></div>
+          <hr>
 			
-                  			<table id="datatable" class="table table-bordered table-striped delTable">
-                    			<thead>
-                                    <tr>
-                                        <th class="no-sort">Sl no</th>
-                                        <th>Name</th>   
-                                        <th>Email</th>     
-                                        <th>Mobile</th>                                                                
-                                        <th>Address</th> 
-                                       
-                                       
-                                    </tr>
-                    			</thead>
-                    			
-                                <tbody>
-                    				<?php $i=1;?>
-                    				<?php 
-									
-									
-									foreach($users as $us){?>
-                       			   
-					
-                          			<td>&nbsp;&nbsp;<input type="checkbox" name="check[]" class="checkbox" value="<?php echo $us->USER_ID; ?>"></td>
-                                    <td><?php echo $us->FULLNAME; ?></td>
-                                    <td><?php echo $us->EMAIL_ID; ?></td>
-                                    <td><?php echo $us->MOBILE_NO; ?></td>  
-                                    <td><?php echo $us->SADDRESS; ?></td>  
-                      				</tr>
-					  				<?php }?> 
-                    			</tbody> 
-                   				
-                                <input type="hidden" id="alert-notification" value="Are you sure you want to delete this banner record?">
-                  			</table>
+          <table id="datatable" class="table table-bordered table-striped delTable">
+            <thead>
+                <tr>
+                    <th class="no-sort" style="width: 40px; text-align: center;">
+                      <input type="checkbox" id="checkAll" title="Select All">
+                    </th>
+                    <th style="width: 60px;">Sl no</th>
+                    <th>Email Address</th>     
+                    <th>Subscribed Date</th>                                                                
+                    <th style="width: 120px; text-align: center;">Action</th>
+                </tr>
+            </thead>
+            
+            <tbody>
+              <?php $i=1;?>
+              <?php if (!empty($subscribers)) {
+                foreach($subscribers as $sub){ ?>
+                  <tr>
+                    <td style="text-align: center;">
+                      <input type="checkbox" name="check[]" class="checkbox-subscriber" value="<?php echo $sub->id; ?>">
+                    </td>
+                    <td><?php echo $i; ?></td>
+                    <td><strong><?php echo htmlspecialchars($sub->email); ?></strong></td>
+                    <td><?php echo !empty($sub->created_at) ? date('d M Y, h:i A', strtotime($sub->created_at)) : '-'; ?></td>  
+                    <td style="text-align: center;">                                 
+                      <a href="<?php echo base_url();?>admin/Template/DeleteSubscriber/<?php echo $sub->id;?>" class="btn btn-xs btn-danger" onclick="return confirm('Are you sure you want to remove this subscriber?');">
+                        <i class="fa fa-trash"></i> Remove
+                      </a>
+                    </td>
+                  </tr>
+                <?php $i++; }
+              } ?> 
+            </tbody> 
+          </table>
                 
-                		</div><!-- /.box-body -->
-              		</div> 
+        </div><!-- /.box-body -->
+      </div> 
               
-            </div><!-- /.col -->
-          </div><!-- /.row -->
-        </section>
-        <!-- /.content -->
-      </div><!-- /.content-wrapper -->
- <?php $this->load->view('admin/includes/footer');?>
+    </div><!-- /.col -->
+  </div><!-- /.row -->
+</section>
+<!-- /.content -->
+</div><!-- /.content-wrapper -->
+<?php $this->load->view('admin/includes/footer');?>
 
- <script>
+<script>
+// Toggle select all
+$(document).on("change", "#checkAll", function() {
+    $(".checkbox-subscriber").prop("checked", $(this).prop("checked"));
+});
+
+$(document).on("change", ".checkbox-subscriber", function() {
+    if (!$(this).prop("checked")) {
+        $("#checkAll").prop("checked", false);
+    } else {
+        if ($(".checkbox-subscriber:checked").length === $(".checkbox-subscriber").length) {
+            $("#checkAll").prop("checked", true);
+        }
+    }
+});
+
 $(document).on("click", "#Sendmail", function(event) {
     event.preventDefault(); 
-    var numberOfChecked = $('input[type="checkbox"]:checked').length;
+    var checkedBoxes = $('input.checkbox-subscriber:checked');
+    if (checkedBoxes.length === 0) {
+        alert("Please select at least one subscriber to send email.");  
+        return false; 
+    }
 
-    // Show loader while processing
+    var subject = $('#subject').val();
+    if (!subject) {
+        alert("Please select a Subject / Template."); 
+        $('#subject').focus();
+        return false; 
+    }      
+
+    var selectedItems = [];             
+    checkedBoxes.each(function(){
+        selectedItems.push($(this).val());
+    });
+
     var loader = $('<div class="loader"></div>');
     $('body').append(loader);
 
-    if (numberOfChecked === 0 && $('#team').val() === "") {
-        alert("Select any Team or Individual");
-        return false;
-    }
-
-    if (numberOfChecked != 0) {
-        $("input:checkbox[name='check[]']:checked").each(function(){
-            var selectedItems = [];             
-            selectedItems.push($(this).val()); 
-            if ($('#subject').val() == "") {
-                alert("Select any Subject"); 
-              
-                return false; 
-            }            
-            var subject = $('#subject').val();  
-            var team = $('#team').val();                                       
-            $.ajax({
-                url: "<?php echo base_url('admin/Users/Sendmail'); ?>",
-                method: "POST",           
-                dataType: "json",			
-                data: {
-                    subject: subject,
-                    item: selectedItems,
-                    team: team
-                },                            
-                success: function(data) {  
-                    if (data.status == 0) {
-                        alertify.set('notifier', 'position', 'top-center');  
-                        alertify.success('Mail not sent').delay(5).dismissOthers();
-                    } else {
-                        alertify.set('notifier', 'position', 'top-center');  
-                        alertify.success('Mail Sent Successfully').delay(5).dismissOthers();
-                        window.location.reload(); 
-                    }
-                
-                   
-                },
-                error: function() {
-                    alert('Error occurred while sending mail.');
-                    loader.remove(); // Remove loader on error
-                }
-            }); 
-        });
-
-    } else {
-        var team = $('#team').val(); 
-        var subject = $('#subject').val();  
-
-        $.ajax({
-            url: "<?php echo base_url('admin/Users/Sendmail'); ?>",
-            method: "POST",           
-            dataType: "json",			
-            data: {
-                subject: subject,                   
-                team: team
-            },                            
-            success: function(data) {  
-                if (data.status == 0) {
-                    alertify.set('notifier', 'position', 'top-center');  
-                    alertify.success('Mail not sent').delay(5).dismissOthers();
-                } else {
+    $.ajax({
+        url: "<?php echo base_url('admin/Users/Sendmail'); ?>",
+        method: "POST",           
+        dataType: "json",			
+        data: {
+            subject: subject,
+            item: selectedItems
+        },                            
+        success: function(data) {  
+            loader.remove();
+            if (data.msg == 1 || data.status == 1) {
+                if (typeof alertify !== 'undefined') {
                     alertify.set('notifier', 'position', 'top-center');  
                     alertify.success('Mail Sent Successfully').delay(5).dismissOthers();
-                    window.location.reload(); 
+                } else {
+                    alert('Mail Sent Successfully');
                 }
-               
-                
-            },
-            error: function() {
-                alert('Error occurred while sending mail.');
-                loader.remove(); // Remove loader on error
+            } else {
+                if (typeof alertify !== 'undefined') {
+                    alertify.set('notifier', 'position', 'top-center');  
+                    alertify.error('Mail could not be sent').delay(5).dismissOthers();
+                } else {
+                    alert('Mail could not be sent');
+                }
             }
-        });
-
-    }
+        },
+        error: function() {
+            loader.remove();
+            alert('Error occurred while sending mail.');
+        }
+    });                 
 });
 </script>
- 
-   
- 
- 
- 
-  
-    
- 

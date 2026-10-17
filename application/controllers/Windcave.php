@@ -52,16 +52,17 @@ class Windcave extends CI_Controller
         
         if (empty($_SESSION['memoryStorage'])) {
 //if (1==1) {
-    $_SESSION['memoryStorage'] = [
-        'config' => [
-            'url' => 'http://www.dwalker.co.nz/',
-            'apiUsername' => 'dwalkerjewelsREST_dev',
-            'apiKey' => 'cdda9942dbe18bf9ba25e7da8a3da0c963e8f14199f94eff65e18bb4fcd04bcf',
-            'environment' => 'uat',
-            'paymentType' => 'auth',
-            'saveCards' => false,
-            'paymentOptions' => ['card'],
-        ],
+        $w_cfg = function_exists('get_windcave_config') ? get_windcave_config() : array();
+        $_SESSION['memoryStorage'] = [
+            'config' => [
+                'url' => 'http://www.dwalker.co.nz/',
+                'apiUsername' => !empty($w_cfg['username']) ? $w_cfg['username'] : '',
+                'apiKey' => !empty($w_cfg['api_key']) ? $w_cfg['api_key'] : '',
+                'environment' => (!empty($w_cfg['mode']) && $w_cfg['mode'] === 'live') ? 'live' : 'uat',
+                'paymentType' => 'auth',
+                'saveCards' => false,
+                'paymentOptions' => ['card'],
+            ],
 
         'products' => [
             1 => [

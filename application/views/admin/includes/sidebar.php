@@ -75,7 +75,6 @@ Product</span> </a>
       <ul class="treeview-menu">
       <li class="<?php if($this->uri->segment(3)=="AddTemplate"):echo 'active'; endif; ?>" > <a href="<?php echo base_url();?>admin/Template/AddTemplate"> <i class="fa fa-plus-square"></i><span>Add Template</span></a> </li>
         <li class="<?php if(($this->uri->segment(3)=="EditTemplate") || ($this->uri->segment(3)=="")):echo 'active'; endif; ?>" > <a href="<?php echo base_url();?>admin/Template"> <i class="fa fa-plus-square"></i> <span>View Templates</span></a> </li>
-    <li class="<?php if(($this->uri->segment(3)=="Team") || ($this->uri->segment(3)=="")):echo 'active'; endif; ?>" > <a href="<?php echo base_url();?>admin/Template/Teams"> <i class="fa fa-plus-square"></i> <span>View Teams</span></a> </li> 
         <li class="<?php if($this->uri->segment(3)=="Users"):echo 'active'; endif; ?>" > <a href="<?php echo base_url();?>admin/Template/Users"> <i class="fa fa-plus-square"></i><span>Send Mail</span></a> </li>
       </ul>
     </li>   
@@ -120,6 +119,14 @@ Testimonials</span> </a>
         <li class="<?php if(($this->uri->segment(3)=="ViewCMS") || ($this->uri->segment(3)=="EditCMS")):echo 'active'; endif; ?>" > <a href="<?php echo base_url();?>admin/CMS/ViewCMS"> <i class="fa fa-plus-square"></i> <span>Edit/View Pages</span></a> </li>
       </ul>
     </li>
+
+    <li class="treeview <?php if($this->uri->segment(2)=="Blogs")  :echo 'active'; endif; ?>"> <a href="#"> <i class="fa fa-newspaper-o" aria-hidden="true"></i> <span>Manage Blogs</span> </a>
+      <ul class="treeview-menu">
+        <li class="<?php if($this->uri->segment(3)=="AddBlog"):echo 'active'; endif; ?>" > <a href="<?php echo base_url();?>admin/Blogs/AddBlog"> <i class="fa fa-plus-square"></i><span>Add Blog</span></a> </li>
+        <li class="<?php if(($this->uri->segment(3)=="EditBlog") || ($this->uri->segment(3)=="")):echo 'active'; endif; ?>" > <a href="<?php echo base_url();?>admin/Blogs"> <i class="fa fa-eye"></i> <span>View Blogs</span></a> </li>
+      </ul>
+    </li>
+
     
  
 

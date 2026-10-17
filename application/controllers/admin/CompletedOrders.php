@@ -486,51 +486,84 @@ public function ChangeStatus($stat,$id){
 			];
 
 
-			$data = [
-				"carrier" => "COURIERPOST",
-				"sender_reference_1" => $order_details['OrderID'],
-				"sender_reference_2" => "Online Order",
-				"account_number" => "92615295",
-				"sender_details" => [
-						"company_name" => "KRV Trading Limitted",
-						"name" => "Vinod Nair",
-						"phone" => "+0223750729",
-						"site_code" => 76356,
-						"email" => "bob@xyzwidgets.com"
-				],
-				"receiver_details" => [
-						"name" => $order_details['payName'],
-						"phone" => $order_details['payPhone'],
-						"email" => $order_details['payEmail']
-				],
-				"pickup_address" => [
-						"street" => "105 Flat Bush Road",
-						"suburb" => "	 Park",
-						"city" => "Auckland",
-						"postcode" => "2023",
-						"country_code" => "NZ"
-				],
-				"delivery_address" => [
-						"street" => $order_details['payStreet'],
-						"suburb" => $order_details['paySuburb'],
-						"city" => $order_details['payCity'],
-						"postcode" => $order_details['payPostCode'],
-						"country_code" => "NZ",
-				],
+				$street = !empty($order_details['payStreet']) ? trim($order_details['payStreet']) : '';
+				$suburb = !empty($order_details['paySuburb']) ? trim($order_details['paySuburb']) : '';
+				$city = !empty($order_details['payCity']) ? trim($order_details['payCity']) : '';
+				$postcode = !empty($order_details['payPostCode']) ? trim($order_details['payPostCode']) : '';
 
-				"parcel_details" => [[
-					"service_code" => "CPOLP",
-					"add_ons" => [],
-					"return_indicator" => "OUTBOUND",
-					"description" => "Medium Box",
-					"dimensions" => [
-							"length_cm" => 30,
-							"width_cm" => 30,
-							"height_cm" => 30,
-							"weight_kg" => 2
-				]
-					]]
+				if (empty($street) && !empty($order_details['payAddress'])) {
+					$parts = array_map('trim', explode(',', $order_details['payAddress']));
+					if (count($parts) >= 4) {
+						$street = $parts[0];
+						$suburb = $parts[1];
+						$city = $parts[2];
+						$postcode = preg_replace('/[^0-9]/', '', $parts[3]);
+					} elseif (count($parts) === 3) {
+						$street = $parts[0];
+						$suburb = $parts[1];
+						$city = $parts[2];
+					} elseif (count($parts) === 2) {
+						$street = $parts[0];
+						$city = $parts[1];
+					} else {
+						$street = $order_details['payAddress'];
+					}
+				}
+
+				// Build delivery address
+				$delivery_address = [
+					"street" => $street,
+					"suburb" => $suburb,
+					"city" => $city,
+					"postcode" => $postcode,
+					"country_code" => "NZ",
 				];
+
+				// If an official NZ Post address_id is stored and non-zero, it can be passed or we use physical address
+				if (!empty($order_details['payAddressId'])) {
+					// Note: NZ Post API requires ONLY ONE of address_id or physical address
+					// Using physical address is standard for CourierPost labels when components are populated
+				}
+
+				$data = [
+					"carrier" => "COURIERPOST",
+					"sender_reference_1" => $order_details['OrderID'],
+					"sender_reference_2" => "Online Order",
+					"account_number" => "92615295",
+					"sender_details" => [
+							"company_name" => "KRV Trading Limitted",
+							"name" => "Vinod Nair",
+							"phone" => "+0223750729",
+							"site_code" => 76356,
+							"email" => "bob@xyzwidgets.com"
+					],
+					"receiver_details" => [
+							"name" => $order_details['payName'],
+							"phone" => $order_details['payPhone'],
+							"email" => $order_details['payEmail']
+					],
+					"pickup_address" => [
+							"street" => "105 Flat Bush Road",
+							"suburb" => "East Tamaki",
+							"city" => "Auckland",
+							"postcode" => "2023",
+							"country_code" => "NZ"
+					],
+					"delivery_address" => $delivery_address,
+
+					"parcel_details" => [[
+						"service_code" => "CPOLP",
+						"add_ons" => [],
+						"return_indicator" => "OUTBOUND",
+						"description" => "Medium Box",
+						"dimensions" => [
+								"length_cm" => 30,
+								"width_cm" => 30,
+								"height_cm" => 30,
+								"weight_kg" => 2
+					]
+						]]
+					];
 
 				$ch = curl_init();
 				curl_setopt($ch, CURLOPT_URL, $url);
@@ -606,6 +639,7 @@ public function ChangeStatus($stat,$id){
 				} else {
 
 					echo "Error: " . $httpcode . " - " . $response;
+					return;
 
 				}
 
