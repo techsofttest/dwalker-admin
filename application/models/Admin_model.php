@@ -482,24 +482,8 @@ public function get_pro_del($id)
 	$this->db->select('*');
 	$this->db->from('dwalker_product');
 	$this->db->where($cond);
-	
-	$this->db->order_by("
-        CASE productCode
-            WHEN '1011' THEN 1
-            WHEN '1012' THEN 2
-            WHEN '1013' THEN 3
-            WHEN '1014' THEN 4
-            WHEN '1015' THEN 5
-            WHEN '1016' THEN 6
-            WHEN '1017' THEN 7
-            WHEN '1018' THEN 8
-            WHEN '1019' THEN 9
-            WHEN '1020' THEN 10
-            ELSE 11
-        END
-    ", 'ASC', false);
-	
-	$this->db->order_by('dwalker_product.product_id','Desc');
+	$this->db->order_by('dwalker_product.sort_order','ASC');
+	$this->db->order_by('dwalker_product.product_id','DESC');
 	
 	$query  = $this->db->get();
 	$return_list    = $query->result();	

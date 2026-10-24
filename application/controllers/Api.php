@@ -268,6 +268,7 @@ class Api extends CI_Controller {
     public function new_arrivals() {
         $this->db->from('dwalker_product');
         $this->db->where('upcoming', 0);
+        $this->db->order_by('sort_order', 'ASC');
         $this->db->order_by('product_id', 'DESC');
         $this->db->limit(8);
         $products = $this->db->get()->result_array();
@@ -280,6 +281,7 @@ class Api extends CI_Controller {
             }
             $p['price'] = (float)$p['productPrice'];
             $p['tax'] = isset($p['productTax']) ? (float)$p['productTax'] : 0.0;
+            $p['sort_order'] = isset($p['sort_order']) ? (int)$p['sort_order'] : 0;
         }
 
         $this->response(array(
