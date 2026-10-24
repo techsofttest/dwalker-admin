@@ -71,8 +71,12 @@ class Product extends CI_Controller
 		  'meta_description'        => $this->input->post('metadescription'),
 		  'meta_keyword'        => $this->input->post('metakeyword'),
 		  'SlugName'  => $this->create_slug($this->input->post('name')),	
-		  
 	     ); //implode(',',$this->input->post('productSizes')),
+		
+		// Auto-assign next sort_order
+		$max_order_query = $this->db->select_max('sort_order', 'max_order')->get('dwalker_product')->row();
+		$subcatsub_data['sort_order'] = ($max_order_query && $max_order_query->max_order !== null) ? ((int)$max_order_query->max_order + 1) : 1;
+
 		$cid = $this->Admin_model->insertsection('dwalker_product',$subcatsub_data);
 		$this->session->set_flashdata('success','Product Added Succesfully');
 		
@@ -544,5 +548,23 @@ public function GetSubcat()
 				$slug_name 	= 	$name . '-' . (++$count);  // Recreate new temp name
 			}
 			return $slug_name;
+		}
+
+		public function update_order()
+		{
+			$orders = $this->input->post('orders');
+			if (!empty($orders) && is_array($orders)) {
+				foreach ($orders as $item) {
+					$product_id = isset($item['id']) ? (int)$item['id'] : 0;
+					$position = isset($item['position']) ? (int)$item['position'] : 0;
+					if ($product_id > 0) {
+						$this->db->where('product_id', $product_id);
+						$this->db->update('dwalker_product', array('sort_order' => $position));
+					}
+				}
+				echo json_encode(array('status' => 'success', 'message' => 'Product order updated successfully.'));
+				return;
+			}
+			echo json_encode(array('status' => 'error', 'message' => 'No order data provided.'));
 		}
  }

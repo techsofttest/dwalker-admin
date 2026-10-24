@@ -184,7 +184,12 @@ class Api extends CI_Controller {
             $this->db->order_by('CAST(productPrice AS DECIMAL(10,2))', 'DESC');
         } elseif ($sort === 'newest') {
             $this->db->order_by('product_id', 'DESC');
+        } elseif ($sort === 'order_desc') {
+            $this->db->order_by('sort_order', 'DESC');
+            $this->db->order_by('product_id', 'DESC');
         } else {
+            // Default to custom drag & drop sort_order
+            $this->db->order_by('sort_order', 'ASC');
             $this->db->order_by('product_id', 'DESC');
         }
 
@@ -204,6 +209,7 @@ class Api extends CI_Controller {
             $p['price'] = (float)$p['productPrice'];
             $p['original_price'] = (float)$p['productStrikePrice'];
             $p['tax'] = isset($p['productTax']) ? (float)$p['productTax'] : 0.0;
+            $p['sort_order'] = isset($p['sort_order']) ? (int)$p['sort_order'] : 0;
             $p['productType'] = !empty($p['productType']) || !empty($p['type']) ? 1 : 0;
             $p['is_featured'] = $p['productType'] === 1;
         }
@@ -232,6 +238,7 @@ class Api extends CI_Controller {
         $this->db->or_where('type', 1);
         $this->db->or_where('type', '1');
         $this->db->group_end();
+        $this->db->order_by('sort_order', 'ASC');
         $this->db->order_by('product_id', 'DESC');
         $this->db->limit(8);
         $products = $this->db->get()->result_array();

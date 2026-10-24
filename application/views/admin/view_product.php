@@ -39,10 +39,11 @@
                    
                 		<div class="box-body">
 			
-                  			<table id="datatable" class="table table-bordered table-striped delTable">
+                  			<table id="datatable" class="table table-bordered table-striped delTable reorderTable">
                     			<thead>
                                     <tr>
-                                        <th class="no-sort">Sl no</th>
+                                        <th style="width: 35px; text-align: center;" class="no-sort"><i class="fa fa-bars" title="Drag to reorder"></i></th>
+                                        <th style="width: 55px; text-align: center;">Order</th>
                                         <th>Name</th>
                                          <th>Product Code</th>
                                         <th>Price</th>
@@ -50,7 +51,7 @@
                                         
                                         <th>Image</th>
                                         <th>Category</th>
-                                        <th>Action</th>
+                                        <th class="no-sort">Action</th>
                                        
                                        
                                     </tr>
@@ -67,8 +68,13 @@
 			                        $prcat=$prod->cat_id;
 									?>
                        			   
-					
-                          			<td><?php echo $i++; ?></td>
+									<tr id="row_<?php echo $prod->product_id; ?>" data-id="<?php echo $prod->product_id; ?>">
+                           			<td class="reorder-handle" style="cursor: grab; text-align: center; vertical-align: middle;">
+                           			    <i class="fa fa-arrows" style="color: #777; font-size: 15px;"></i>
+                           			</td>
+                           			<td class="order-cell" style="vertical-align: middle; text-align: center; font-weight: bold;">
+                           			    <span class="badge bg-purple order-number"><?php echo (isset($prod->sort_order) && $prod->sort_order > 0) ? $prod->sort_order : $i; ?></span>
+                           			</td>
                                     <td><?php echo $prod->product_name; ?>
                                      <br /><br />
                                       <strong> Stock : <?php echo $prod->productStock; ?> </strong> 
@@ -173,7 +179,120 @@
         
         <!-- /.content -->
       </div><!-- /.content-wrapper -->
- <?php $this->load->view('admin/includes/footer');?>
+
+  <style>
+    .reorder-handle:hover {
+      background-color: #f0f0f0;
+    }
+    .reorder-handle:active {
+      cursor: grabbing !important;
+    }
+    .ui-sortable-helper {
+      display: table !important;
+      background: #ffffff !important;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2) !important;
+    }
+    .ui-sortable-placeholder {
+      visibility: visible !important;
+      background-color: #fcf8e3 !important;
+      height: 60px;
+    }
+    .order-saving-notice {
+      position: fixed;
+      top: 65px;
+      right: 25px;
+      z-index: 99999;
+      display: none;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+  </style>
+
+  <div id="orderSavingNotice" class="order-saving-notice alert alert-info">
+    <i class="fa fa-refresh fa-spin"></i> Saving updated product order...
+  </div>
+
+  <?php $this->load->view('admin/includes/footer');?>
+
+  <!-- jQuery UI for Sortable drag-and-drop reordering -->
+  <script src="<?php echo base_url();?>assets/admin/js/jquery-ui.min.js"></script>
+
+  <script type="text/javascript">
+  $(document).ready(function() {
+      var prodTable = $('#datatable').DataTable({
+          "ordering": false,
+          "pageLength": 50,
+          "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+          "dom": "<'row'<'col-sm-4'l> <'col-sm-8'p>>" + 'Bfrtip',
+          "buttons": [
+              {
+                  extend: 'excel',
+                  exportOptions: {
+                      columns: 'thead th:not(.noExport)'
+                  }
+              }
+          ]
+      });
+
+      // Enable drag and drop row sorting
+      $("#datatable tbody").sortable({
+          handle: ".reorder-handle",
+          items: "tr",
+          cursor: "grabbing",
+          axis: "y",
+          opacity: 0.85,
+          placeholder: "ui-sortable-placeholder",
+          helper: function(e, ui) {
+              ui.children().each(function() {
+                  $(this).width($(this).width());
+              });
+              return ui;
+          },
+          update: function(event, ui) {
+              var newOrders = [];
+              var startPos = 1;
+
+              var info = prodTable.page.info();
+              if (info) {
+                  startPos = info.start + 1;
+              }
+
+              $("#datatable tbody tr").each(function(index) {
+                  var pId = $(this).data("id");
+                  var pos = startPos + index;
+                  $(this).find(".order-number").text(pos);
+                  if (pId) {
+                      newOrders.push({
+                          id: pId,
+                          position: pos
+                      });
+                  }
+              });
+
+              if (newOrders.length > 0) {
+                  $("#orderSavingNotice").stop(true, true).fadeIn(150);
+                  $.ajax({
+                      url: "<?php echo base_url('admin/Product/update_order'); ?>",
+                      type: "POST",
+                      dataType: "json",
+                      data: { orders: newOrders },
+                      success: function(response) {
+                          $("#orderSavingNotice").fadeOut(200);
+                          if (typeof alertify !== 'undefined' && alertify.success) {
+                              alertify.success("Product order updated successfully!");
+                          }
+                      },
+                      error: function() {
+                          $("#orderSavingNotice").fadeOut(200);
+                          if (typeof alertify !== 'undefined' && alertify.error) {
+                              alertify.error("Failed to update product order.");
+                          }
+                      }
+                  });
+              }
+          }
+      });
+  });
+  </script>
  
    
  

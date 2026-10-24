@@ -401,7 +401,8 @@ public function get_pro_del($id)
 	{
 	   $this->db->select('*');
 	   $this->db->from('dwalker_product');
-	   $this->db->order_by('dwalker_product.product_id','Desc');
+	   $this->db->order_by('dwalker_product.sort_order','ASC');
+	   $this->db->order_by('dwalker_product.product_id','DESC');
 	   $query  = $this->db->get();
 	   $return_list    = $query->result();
 	   return $return_list;
@@ -538,7 +539,8 @@ public function get_pro_del($id)
 	$this->db->select('*');
 	$this->db->from('dwalker_product');
 	$this->db->where($cond);
-	$this->db->order_by('dwalker_product.product_id','ASC');
+	$this->db->order_by('dwalker_product.sort_order','ASC');
+	$this->db->order_by('dwalker_product.product_id','DESC');
 	
 	$query  = $this->db->get();
 	$return_list    = $query->result();	

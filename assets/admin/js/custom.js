@@ -153,31 +153,33 @@ $.fn.dataTable.Api.register( 'clearPipeline()', function () {
 ////////////////////////////////////
 $(function () {
 	
-	var table = $('#datatable').DataTable({
-   'aoColumnDefs': [{
-        'bSortable': false,		
-        'aTargets': [-1,0] /* 1st one, start by the right */
-    }],
-    'dom': "<'row'<'col-sm-4'l> <'col-sm-8'p>>" + 'Bfrtip',
-    buttons: [
-       
-        
-        {
-        extend:'excel',
-        exportOptions: {
-            columns: 'thead th:not(.noExport)'
-            
-         }
-    
-        },       
-    ],  
-	
-	"aoColumnDefs" : [ {
-    "bSortable" : false,
-    "aTargets" : ["no-sort"]
-} ]
-	});
-	$('#datatable thead tr th:first-child').removeClass('sorting_asc');
+	if ($('#datatable').length && !$('#datatable').hasClass('reorderTable')) {
+		var table = $('#datatable').DataTable({
+	   'aoColumnDefs': [{
+			'bSortable': false,		
+			'aTargets': [-1,0] /* 1st one, start by the right */
+		}],
+		'dom': "<'row'<'col-sm-4'l> <'col-sm-8'p>>" + 'Bfrtip',
+		buttons: [
+		   
+			
+			{
+			extend:'excel',
+			exportOptions: {
+				columns: 'thead th:not(.noExport)'
+				
+			 }
+		
+			},       
+		],  
+		
+		"aoColumnDefs" : [ {
+		"bSortable" : false,
+		"aTargets" : ["no-sort"]
+	} ]
+		});
+		$('#datatable thead tr th:first-child').removeClass('sorting_asc');
+	}
     
     $("#add_banner").validationEngine();   
     
