@@ -22,3 +22,4 @@ application/sessions/*
 !application/sessions/.htaccess
 /vendor/
 /FILES/
+/uploads/
