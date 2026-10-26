@@ -382,10 +382,24 @@
                             <td align="left">Shipping</td>
                             <td align="right">$ <?= number_format((float)$order["payShipping"], 2) ?> NZD</td>
                             </tr>
-                            <?php if(!empty($order["promo_status"]) && $order["promo_status"] == 1) { ?>
+                            <?php if(!empty($order["promo_status"]) && $order["promo_status"] == 1) { 
+                                $before = (float)$order["payTotalbefore"];
+                                $shipping = (float)$order["payShipping"];
+                                $tax = !empty($order["payTax"]) ? (float)$order["payTax"] : 0;
+                                $actual_total = (float)$order["payTotal"];
+                                $computed_expected = $before + $shipping + $tax;
+                                // If promo_dis was stored as actual discount dollar amount instead of percentage
+                                if ($actual_total > 0 && abs(($computed_expected - (float)$order["promo_dis"]) - $actual_total) < 0.05) {
+                                    $dis_amount = (float)$order["promo_dis"];
+                                    $dis_pct = $before > 0 ? round(($dis_amount / $before) * 100, 2) : 0;
+                                } else {
+                                    $dis_pct = (float)$order["promo_dis"];
+                                    $dis_amount = ($before * $dis_pct) / 100;
+                                }
+                            ?>
                             <tr style="color:red;">
-                            <td align="left">Promo Discount (<?= $order["promo_dis"] ?>%)</td>
-                            <td align="right">- $ <?= number_format(((float)$order["payTotalbefore"] * (float)$order["promo_dis"]) / 100, 2) ?> NZD</td>
+                            <td align="left">Promo Discount (<?= $dis_pct ?>%)</td>
+                            <td align="right">- $ <?= number_format($dis_amount, 2) ?> NZD</td>
                             </tr>
                             <?php } ?>
                             <tr>

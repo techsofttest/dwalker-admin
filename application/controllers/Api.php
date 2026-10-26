@@ -1298,7 +1298,17 @@ class Api extends CI_Controller {
         $order_id = 'DW' . rand(100000, 999999);
 
         $promocode = isset($post['promocode']) ? trim($post['promocode']) : '';
-        $promo_dis = $discount;
+        $promo_dis = 0;
+        if (!empty($promocode)) {
+            $promo_row = $this->db->get_where('dwalker_promocode', array('code' => $promocode))->row_array();
+            if ($promo_row && isset($promo_row['discount'])) {
+                $promo_dis = (float)$promo_row['discount'];
+            } elseif ($subtotal > 0 && $discount > 0) {
+                $promo_dis = round(($discount / $subtotal) * 100, 2);
+            }
+        } elseif ($subtotal > 0 && $discount > 0) {
+            $promo_dis = round(($discount / $subtotal) * 100, 2);
+        }
 
         // If promocode used, record in dwalker_usedpromo
         if (!empty($promocode) && !empty($email)) {

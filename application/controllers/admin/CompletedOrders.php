@@ -319,14 +319,22 @@ class CompletedOrders extends CI_Controller {
 
 			if($order['promo_status']==1)
 			{
-			 
-			$Tamnt = $this->Admin_model->select_sum('dwalker_order_products',array('OrderID'=>$order['payID']),'payPrice');	
-			$damnt = ($Tamnt*$order['promo_dis'])/100;
-   $promo_card = 
-			$discount_sec .='
+				$Tamnt = $this->Admin_model->select_sum('dwalker_order_products',array('OrderID'=>$order['payID']),'payPrice');
+				$before = (float)$order['payTotalbefore'] ?: (float)$Tamnt;
+				$shipping = (float)$order['payShipping'];
+				$tax = !empty($order['payTax']) ? (float)$order['payTax'] : 0;
+				$actual_total = (float)$order['payTotal'];
+				$computed_expected = $before + $shipping + $tax;
+
+				if ($actual_total > 0 && abs(($computed_expected - (float)$order['promo_dis']) - $actual_total) < 0.05) {
+					$damnt = (float)$order['promo_dis'];
+				} else {
+					$damnt = ($Tamnt * (float)$order['promo_dis']) / 100;
+				}
+				$discount_sec .='
 				<tr style="color:red;">		
 				<td align="right" colspan="2">Promocode Discount</td>			
-					<td align="right">- $ '.$damnt.' NZD</td>
+					<td align="right">- $ '.number_format($damnt, 2).' NZD</td>
 				</tr>
 				';
 

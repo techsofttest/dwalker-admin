@@ -263,7 +263,7 @@
                 document.getElementById('state-declined').classList.add('hidden');
                 document.getElementById('state-approved').classList.remove('hidden');
 
-                document.getElementById('approved-order-id').innerText = json.data.order_id_final || json.data.order_id || 'DWJ-ORDER';
+                document.getElementById('approved-order-id').innerText = json.data.order_id || json.data.order_id_final || 'DWJ-ORDER';
                 document.getElementById('approved-total').innerText = json.data.total ? ('$' + parseFloat(json.data.total).toFixed(2) + ' NZD') : '';
                 return;
               } else if (pStatus === 'declined' || pStatus === 'failed') {

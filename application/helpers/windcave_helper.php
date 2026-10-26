@@ -260,6 +260,22 @@ if (!function_exists('windcave_send_confirmation_email')) {
                               </td>
                             </tr>
                             <tr><th>Subtotal</th><td>$' . number_format((float)$order_det['payTotalbefore'], 2) . ' NZD</td></tr>
+                            ' . (!empty($order_det['promo_status']) && (int)$order_det['promo_status'] === 1 ? (function() use ($order_det) {
+                                $before = (float)$order_det['payTotalbefore'];
+                                $shipping = (float)$order_det['payShipping'];
+                                $tax = !empty($order_det['payTax']) ? (float)$order_det['payTax'] : 0;
+                                $actual_total = (float)$order_det['payTotal'];
+                                $computed_expected = $before + $shipping + $tax;
+
+                                if ($actual_total > 0 && abs(($computed_expected - (float)$order_det['promo_dis']) - $actual_total) < 0.05) {
+                                    $dis_amount = (float)$order_det['promo_dis'];
+                                    $dis_pct = $before > 0 ? round(($dis_amount / $before) * 100, 2) : 0;
+                                } else {
+                                    $dis_pct = (float)$order_det['promo_dis'];
+                                    $dis_amount = ($before * $dis_pct) / 100;
+                                }
+                                return '<tr style="color:#b91c1c;"><th>Promo Discount (' . $dis_pct . '%)</th><td>- $' . number_format($dis_amount, 2) . ' NZD</td></tr>';
+                            })() : '') . '
                             ' . (!empty($order_det['payTax']) && (float)$order_det['payTax'] > 0 ? '<tr><th>GST / Tax</th><td>$' . number_format((float)$order_det['payTax'], 2) . ' NZD</td></tr>' : '') . '
                             <tr><th>Shipping</th><td>$' . number_format((float)$order_det['payShipping'], 2) . ' NZD</td></tr>
                             <tr><th><b>Grand Total</b></th><td><b>$' . number_format((float)$order_det['payTotal'], 2) . ' NZD</b></td></tr>
