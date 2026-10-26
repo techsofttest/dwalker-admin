@@ -264,15 +264,6 @@ if (!function_exists('windcave_send_confirmation_email')) {
                             ' . (!empty($order_det['payTax']) && (float)$order_det['payTax'] > 0 ? '<tr><th>GST / Tax</th><td>$' . number_format((float)$order_det['payTax'], 2) . ' NZD</td></tr>' : '') . '
                             <tr><th>Shipping</th><td>$' . number_format((float)$order_det['payShipping'], 2) . ' NZD</td></tr>
                             <tr><th><b>Grand Total</b></th><td><b>$' . number_format((float)$order_det['payTotal'], 2) . ' NZD</b></td></tr>
-                            <thead style="background-color:#5aa0dc;color:white">
-                              <tr><th colspan="2"><h3>Complimentary Details</h3></th></tr>
-                            </thead>  
-                            <tr><th>Model</th><td>' . htmlspecialchars($order_det['code']) . '</td></tr>             
-                            <tr><th>Type</th><td>' . htmlspecialchars($order_det['Mugtype']) . '</td></tr>
-                            <tr><th>Size</th><td>' . htmlspecialchars($order_det['Mugsize']) . '</td></tr>
-                            <tr><th>Photo Area</th><td>' . htmlspecialchars($order_det['Photoarea']) . '</td></tr>
-                            <tr><th>Color</th><td>' . htmlspecialchars($order_det['Colors']) . '</td></tr>   
-                            <tr><th></th><td><img src="cid:' . $imageShow . '" border="0"></td></tr>
                           </tbody>
                         </table>
                       </tr>
@@ -293,9 +284,6 @@ if (!function_exists('windcave_send_confirmation_email')) {
 
         $ci->email->clear(TRUE);
         $ci->email->from($from_email, $from_name);
-        if (!empty($order_det['photo']) && file_exists(FCPATH . 'uploads/Gift/' . $order_det['photo'])) {
-            $ci->email->attach(FCPATH . 'uploads/Gift/' . $order_det['photo'], 'inline');
-        }
 
         $subject = ($order_det['payOrderID'] ? $order_det['payOrderID'] : 'Order Confirmation') . ' :: ' . $from_name;
         $ci->email->to($admin_emails);

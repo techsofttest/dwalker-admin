@@ -117,15 +117,6 @@ class Cashondelivery extends CI_Controller
 
 								<tr><th>Amount</th><td>'.$order_det['payTotal'].'</td></tr>
 
-								<thead style="background-color:#5aa0dc;color:white">
-								<tr><th colspan="2"><h3>Complimentary Details</h3></th></tr>
-								</thead>  
-                <tr><th>Model</th><td>'.$order_det['code'].'</td></tr>             
-                <tr><th>Type</th><td>'.$order_det['Mugtype'].'</td></tr>
-                <tr><th>Size</th><td>'.$order_det['Mugsize'].'</td></tr>
-                <tr><th>Photo Area</th><td>'.$order_det['Photoarea'].'</td></tr>
-                <tr><th>Color</th><td>'.$order_det['Colors'].'</td></tr>   
-                <tr><th></th><td><img src="cid:'.$imageShow.'" border="0"></td></tr>
 								</tbody>
 								</table>
 						  </tr>
@@ -238,9 +229,7 @@ $config['validation'] = TRUE; // bool whether to validate email or not
 
 					
 
-					$this->email->from('mailus@dwalker.co.nz','D WALKER JEWELRY'); 
-
-          $this->email->attach($imageShow, 'inline');   
+					$this->email->from('mailus@dwalker.co.nz','D WALKER JEWELRY');   
 
 						$subject = "{$order_det['payOrderID']} :: D WALKER JEWELRY";
 					
