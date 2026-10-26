@@ -161,11 +161,10 @@ if (!function_exists('windcave_finalize_order')) {
             $ci->db->where('paySessionId', $session_id);
             $ci->db->update('dwalker_payments', $update_data);
 
-            // Send confirmation email if not already sent
-            if ((int)$existing['payEmailSent'] === 0) {
+            // Atomic conditional update to ensure only 1 thread sends the email
+            $ci->db->query("UPDATE dwalker_payments SET payEmailSent = 1 WHERE paySessionId = ? AND (payEmailSent = 0 OR payEmailSent IS NULL)", array($session_id));
+            if ($ci->db->affected_rows() > 0) {
                 windcave_send_confirmation_email($session_id);
-                $ci->db->where('paySessionId', $session_id);
-                $ci->db->update('dwalker_payments', array('payEmailSent' => 1));
             }
 
             return array(
@@ -288,7 +287,10 @@ if (!function_exists('windcave_send_confirmation_email')) {
         $subject = ($order_det['payOrderID'] ? $order_det['payOrderID'] : 'Order Confirmation') . ' :: ' . $from_name;
         $ci->email->to($admin_emails);
         if (!empty($order_det['payEmail'])) {
-            $ci->email->bcc($order_det['payEmail']);
+            $admin_list = array_map('trim', explode(',', strtolower((string)$admin_emails)));
+            if (!in_array(strtolower(trim($order_det['payEmail'])), $admin_list, true)) {
+                $ci->email->bcc($order_det['payEmail']);
+            }
         }
         $ci->email->subject($subject);
         $ci->email->message($body);
