@@ -277,10 +277,10 @@ if (!function_exists('windcave_send_confirmation_email')) {
             </table>
         </div>';
 
-        $ci->load->config('email', TRUE);
-        $from_email   = $ci->config->item('from_email') ?: 'techsofttest123@gmail.com';
+        $ci->load->config('email');
+        $from_email   = $ci->config->item('from_email');
         $from_name    = $ci->config->item('from_name') ?: 'D. Walker Jewellers';
-        $admin_emails = $ci->config->item('admin_emails') ?: 'dwalkerjewels@gmail.com, nair182002@gmail.com, techsofttest@gmail.com';
+        $admin_emails = $ci->config->item('admin_emails');
 
         $ci->email->clear(TRUE);
         $ci->email->from($from_email, $from_name);

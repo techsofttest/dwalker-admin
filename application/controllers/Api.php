@@ -2157,11 +2157,11 @@ class Api extends CI_Controller {
 
         // Load centralized email configuration
         $this->load->library('email');
-        $this->load->config('email', TRUE);
+        $this->load->config('email');
 
-        $from_email   = $this->config->item('from_email') ?: 'techsofttest123@gmail.com';
+        $from_email   = $this->config->item('from_email');
         $from_name    = $this->config->item('from_name') ?: 'D. Walker Jewellers';
-        $admin_emails = $this->config->item('admin_emails') ?: 'dwalkerjewels@gmail.com, nair182002@gmail.com, techsofttest@gmail.com';
+        $admin_emails = $this->config->item('admin_emails');
 
         // Build HTML email body
         $body = '<div style="font-family: Arial, Helvetica, sans-serif; line-height: 20px; color: #333333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e5e5;">
